@@ -1,7 +1,7 @@
 /*
- * IPTest 节点检测 · Surge 面板脚本 v3 — 纯净度一目了然
+ * IPTest 节点检测 · Surge 面板脚本 v4 — 纯净度一目了然
  * Surge 面板只能显示纯文本标题+内容, 做不出网站那种彩色药丸和彩色评分条,
- * 所以用表情+文字条+标题直接给结论, 纯净度放最前面, 细节放后面.
+ * 所以用表情+标题直接给结论, 纯净度放最前面, 细节放后面.
  * 数据来源, 全部免 Key、免注册:
  *   1) https://iptest.us/api/ip — 出口 IP、归属、ISP、ASN、时区、延迟
  *      (iptest 官方 API 只有归属信息, 没有欺诈分, 网站上的欺诈值是它内部算的, 不开放)
@@ -99,10 +99,8 @@ function grade(risk) {
     if (fraud && typeof fraud.fraud_score === 'number') scores.push(fraud.fraud_score)
     const risk = scores.length ? Math.round(scores.reduce(function (a, b) { return a + b }, 0) / scores.length) : null
     const g = risk === null ? { label: '未查到', emoji: '⚪', color: '#0EA5E9' } : grade(risk)
-    const clean = risk === null ? 0 : 100 - risk
-    // 文字评分条: 10 格, 干净程度越高填得越多
-    const filled = Math.round(clean / 10)
-    const bar = '█'.repeat(filled) + '░'.repeat(10 - filled)
+    // 标题里已经有“极度纯净 5%”了, 内容里不再重复放综合评分条和 95%,
+    // 免得两个百分比看着多余; █ 字符在 Surge 里还会糊成一块灰条
 
     // 类型标签
     const tags = []
@@ -121,7 +119,6 @@ function grade(risk) {
     panel.title = g.emoji + ' ' + g.label + ' ' + risk + '% · ' + (flag ? flag + ' ' : '') + country
     panel['icon-color'] = g.color
     const lines = [
-      '综合评分: ' + bar + ' ' + clean + '% ' + g.label,
       '欺诈值: ' + fraudVal + (fraudWord ? ' ' + fraudWord : '') + (abuse ? ' · ' + abuse : ''),
       'IP 类型: ' + (tags.length ? tags.join(' · ') : '未知'),
       'IP: ' + ip + (version ? ' (' + version + ')' : ''),
