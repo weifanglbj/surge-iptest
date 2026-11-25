@@ -1,5 +1,5 @@
 /*
- * IPTest 节点检测 · Surge 面板脚本 v4 — 纯净度一目了然
+ * IPTest 节点检测 · Surge 面板脚本 v5 — 纯净度一目了然
  * Surge 面板只能显示纯文本标题+内容, 做不出网站那种彩色药丸和彩色评分条,
  * 所以用表情+标题直接给结论, 纯净度放最前面, 细节放后面.
  * 数据来源, 全部免 Key、免注册:
@@ -83,7 +83,7 @@ function grade(risk) {
     const net = d.network || {}
     const isp = (net.isp || net.org || d.organization || '未知').replace(/ CO\., LIMITED$/i, '').replace(/, LIMITED$/i, '')
     const asnNum = net.asn ? 'AS' + net.asn : (d.asn_organization || '未知')
-    const tz = geo.timezone || d.timezone || '未知'
+    // 时区就是归属地的另一种写法(Hong Kong = Asia/Hong_Kong), 两行重复, 不要了
     const latency = typeof d.latencyMs === 'number' ? d.latencyMs + 'ms' : ''
 
     // 纯净度: 两个免费接口并行查, 互相印证
@@ -125,9 +125,10 @@ function grade(risk) {
       '归属: ' + place,
       'ISP: ' + isp,
       'ASN: ' + asnNum,
-      '时区: ' + tz + (geo.utcOffset ? ' (UTC' + geo.utcOffset + ')' : ''),
     ]
     if (latency) lines.push('延迟: ' + latency)
+    // 检测来源只写一个 iptest.us
+    lines.push('来源: https://iptest.us')
     panel.content = lines.join('\n')
   } catch (e) {
     panel.title = 'IPTest 检测失败'
