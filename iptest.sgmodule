@@ -1,0 +1,10 @@
+#!name=IPTest 节点检测
+#!desc=Surge 面板显示当前节点出口 IP: 国家/城市/ISP/ASN/时区, 数据来自 iptest.us 开放 API, 无需 Key
+#!author=yoki
+#!category=IPTest
+
+[Panel]
+iptest = script-name=iptest, title="IPTest 节点检测", content="请刷新面板", update-interval=3600
+
+[Script]
+iptest = type=generic, timeout=15, script-path=https://raw.githubusercontent.com/weifanglbj/surge-iptest/main/iptest-panel.js
