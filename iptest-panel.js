@@ -1,4 +1,10 @@
 /*
+ * IPTest 节点检测 · Surge 面板脚本 v7 草稿 — 只修 v6 被用户指出的两处错标, 纯净度打分逻辑与 v5/v6 完全一致, 未改动
+ * 修 1) 位置: iptest.us 的 geo 库会把个别 IP 的城市标错 (如 187.54.52.230 标成 Tokyo, 实际是香港),
+ *        改为优先用 iplogs 的 ip_info 国家/城市, iplogs 与 FFraud 在该 IP 上都认同香港, iptest 只作后备.
+ * 修 2) 属性: iplogs 同时给出 type=residential 与 is_hosting=true (机房段内、住宅型注册),
+ *        v6 拼成“家庭宽带 · 机房段”容易误导. v7 有 is_hosting 时先写“机房段”, 住宅型跟在后面作补充;
+ *        无 hosting 标记时仍按原逻辑显示“家庭宽带”或“机房”.
  * IPTest 节点检测 · Surge 面板脚本 v6 — 参考“IP 纯净度”面板的两列对齐排版
  * 标题: IP 纯净度 · 风险% 等级, 内容左列标签、右列值, 最后一行测试来源
  * Surge 面板只能显示纯文本, 对齐靠空格补位, 不是网页表格, 只能做到近似.
@@ -86,6 +92,8 @@ function grade(risk) {
     const geo = d.geo || d
     const country = geo.country || geo.country_code || '未知'
     const flag = geo.flagEmoji || geo.emoji || ''
+    // v7: 位置先取 iptest 的, 拿到 iplogs 后再覆盖 (见下面 logsPlace); iptest 曾把
+    // 187.54.52.230 的城市错标为 Tokyo, 而 iplogs/FFraud 都认同是香港.
     const place = dedupe([country, geo.region || '', geo.city || '']).join(' ')
     const net = d.network || {}
     const isp = (net.isp || net.org || d.organization || '未知').replace(/ CO\., LIMITED$/i, '').replace(/, LIMITED$/i, '')
@@ -106,12 +114,22 @@ function grade(risk) {
     const risk = scores.length ? Math.round(scores.reduce(function (a, b) { return a + b }, 0) / scores.length) : null
     const g = risk === null ? { label: '未查到', color: '#0EA5E9' } : grade(risk)
 
-    // 属性: 住宅/机房, 机房段、VPN/代理/Tor 检出情况跟在后面
+    // v7 位置: iplogs 有国家/城市时优先用它 (与 FFraud 的国家互相印证), 否则沿用 iptest 的 place
+    const logsGeo = (logs && logs.ip_info) || null
+    const logsPlace = logsGeo && logsGeo.country
+      ? dedupe([logsGeo.country, logsGeo.city || '']).join(' ')
+      : place
+    // v7 属性: 住宅/机房, 机房段、VPN/代理/Tor 检出情况跟在后面.
+    // is_hosting 为真时先写“机房段”, 住宅型只作补充, 不再把“家庭宽带”放第一位;
+    // 只有无 hosting 标记时, 才按原逻辑显示“家庭宽带”或“机房”.
     const tags = []
     const netType = (logs && logs.ip_info && logs.ip_info.type) || ''
-    if (netType === 'residential' || (fraud && fraud.connection_type === 'Residential')) tags.push('家庭宽带')
+    const isResidential = netType === 'residential' || (fraud && fraud.connection_type === 'Residential')
+    if (logs && logs.is_hosting) {
+      tags.push('机房段')
+      if (isResidential) tags.push('住宅型')
+    } else if (isResidential) tags.push('家庭宽带')
     else if (netType === 'datacenter') tags.push('机房')
-    if (logs && logs.is_hosting) tags.push('机房段')
     if (logs && logs.is_vpn) tags.push('VPN')
     if (logs && logs.is_proxy) tags.push('代理')
     if (logs && logs.is_tor) tags.push('Tor')
@@ -126,7 +144,7 @@ function grade(risk) {
       row(version === 'IPv6' ? 'IPv6' : 'IPv4', ip),
       row('属性', tags.length ? tags.join(' · ') : '未知'),
       row('ASN', asnNum),
-      row('位置', (flag ? flag + ' ' : '') + place),
+      row('位置', (flag ? flag + ' ' : '') + logsPlace),
       row('运营商', isp),
       row('欺诈值', fraudVal + (fraudWord ? ' ' + fraudWord : '') + (abuse ? ' · ' + abuse : '')),
     ]
