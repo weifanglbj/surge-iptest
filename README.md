@@ -1,26 +1,32 @@
-# IPTest 节点检测 · Surge 模块
+# Surge 节点检测模块
 
-Surge 面板显示当前节点出口 IP 的归属：国家 / 城市 / ISP / ASN / 时区 / 延迟。
+本仓库包含两个可独立安装的 Surge 模块：
 
-数据来自 [iptest.us](https://iptest.us) 开放 API，无需 Key，限流 50 次/分钟/IP。
+## 1. IPTest 节点检测
 
-## 文件
+面板显示当前节点出口 IP 的国家 / 城市 / ISP / ASN / 时区 / 延迟，以及 IP 纯净度信息。
 
-- `iptest.sgmodule` — 模块文件，Surge 安装它
-- `iptest-panel.js` — 面板脚本，先请求 `https://iptest.us/api/ip`，失败时用 `https://iptest.us/api/geoip` 备用
+安装链接：
 
-## 安装（GitHub 托管）
+`https://raw.githubusercontent.com/weifanglbj/surge-iptest/main/iptest.sgmodule`
 
-1. 在 GitHub 新建一个 **Public** 仓库，名字就叫 `surge-iptest`，不要勾选 README。
-2. 把 `iptest.sgmodule` 和 `iptest-panel.js` 两个文件上传到这个仓库（Add file → Upload files），点 Commit。
-3. 模块安装链接就是：
-   `https://raw.githubusercontent.com/weifanglbj/surge-iptest/main/iptest.sgmodule`
-   （把 `weifanglbj` 换成你自己的 GitHub 用户名，仓库名 / 分支名不一样也照着改）
-4. Surge → 模块 → 安装新模块 → 粘贴上面那个链接 → 好的。
-5. 回到 Surge 首页，面板里会出现“IPTest 节点检测”，点一下就刷新。
+## 2. 节点网速测试
 
-## 用法
+面板会通过当前 Surge 选中的节点访问 Cloudflare Speed Test，测试：
 
-- 切换节点后，点一下面板，就能看到新节点的出口 IP 在哪个国家、哪个城市、哪个 ISP。
-- 面板每小时自动刷新一次，平时不用管。
-- 如果面板显示的是国内直连 IP，说明 `iptest.us` 没走代理，在配置里加一条规则：`DOMAIN,iptest.us,节点选择`（策略组名按你自己的改）。
+- 连接延迟
+- 1 MB 下载速度
+- 5 MB 下载速度
+
+安装链接：
+
+`https://raw.githubusercontent.com/weifanglbj/surge-iptest/main/speedtest.sgmodule`
+
+测速文件来自 `speed.cloudflare.com`，只下载数据，不上传用户内容。测速结果受当前网络、节点负载、测速服务器和 Surge 策略影响，仅供节点横向对比，不等同于宽带满速。
+
+## 安装
+
+1. 打开 Surge → 模块 → 安装新模块。
+2. 粘贴对应的 Raw 链接。
+3. 安装后回到首页，在面板中点击刷新。
+4. 如需确保测速走代理，请为 `speed.cloudflare.com` 添加到对应的节点策略组。
