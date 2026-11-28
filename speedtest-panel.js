@@ -43,7 +43,9 @@ async function firstSuccess(urls, timeout) {
   let lastError
   for (let i = 0; i < urls.length; i++) {
     try {
-      return await request(urls[i], timeout)
+      const result = await request(urls[i], timeout)
+      result.source = urls[i].indexOf('cloudflare') >= 0 ? 'Cloudflare' : 'Apple CDN'
+      return result
     } catch (e) {
       lastError = e
     }
@@ -74,11 +76,10 @@ function speedColor(mbps) {
     'icon-color': '#0A84FF'
   }
   const results = []
-  let source = ''
+  let sources = {}
   let latency = null
 
   try {
-    // 延迟只取成功请求，第一地址失败会自动使用备用地址。
     const ping = await firstSuccess(PING_URLS, 10)
     latency = ping.elapsed
 
@@ -88,7 +89,7 @@ function speedColor(mbps) {
         const urls = DOWNLOAD_URLS.map(function (base) { return base + bytes })
         const download = await firstSuccess(urls, REQUEST_TIMEOUT)
         results.push({ bytes: bytes, elapsed: download.elapsed })
-        source = download.url || (download.fromApple ? 'Apple CDN' : 'Cloudflare / Apple CDN')
+        sources[download.source] = true
       } catch (e) {
         // 保留已完成的项目，避免单个大文件失败导致整个面板无结果。
       }
@@ -104,7 +105,8 @@ function speedColor(mbps) {
       lines.push(formatSize(item.bytes) + '   ' + formatMbps(item.bytes, item.elapsed))
     })
     if (results.length < SAMPLES.length) lines.push('部分测速失败，可再次刷新')
-    lines.push('', '测速源  Cloudflare / Apple CDN', '仅下载，不上传数据')
+    const sourceNames = Object.keys(sources)
+    lines.push('', '测速源  ' + (sourceNames.length ? sourceNames.join(' / ') : '未知'), '仅下载，不上传数据')
 
     // 以最大成功样本作为主速度，减少小文件启动开销造成的虚高。
     const main = results[results.length - 1]
