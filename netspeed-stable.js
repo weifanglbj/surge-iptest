@@ -35,10 +35,6 @@ function mbps(bytes, milliseconds) {
   return bytes * 8 / milliseconds / 1000
 }
 
-function mbPerSecond(bytes, milliseconds) {
-  return bytes / milliseconds / 1000
-}
-
 function kbPerSecond(bytes, milliseconds) {
   return bytes / milliseconds
 }
@@ -61,15 +57,12 @@ function speedColor(value) {
     const ping = await get(PING_URL, 15)
     const download = await get(DOWNLOAD_URL, TIMEOUT)
     const valueMbps = mbps(PACKET_BYTES, download.elapsed)
-    const valueMBs = mbPerSecond(PACKET_BYTES, download.elapsed)
     const valueKBs = kbPerSecond(PACKET_BYTES, download.elapsed)
 
     panel.title = '节点网速 · ' + valueMbps.toFixed(2) + ' Mbps'
     panel.content = [
       '测速文件  3 MB',
-      '下载速度  ' + valueMbps.toFixed(2) + ' Mbps',
-      '实际速度  ' + valueMBs.toFixed(2) + ' MB/s',
-      '实际速度  ' + valueKBs.toFixed(0) + ' KB/s',
+      '下载速度  ' + valueMbps.toFixed(2) + ' Mbps（' + valueKBs.toFixed(0) + ' KB/s）',
       '延迟      ' + ping.elapsed + ' ms',
       '耗时      ' + (download.elapsed / 1000).toFixed(2) + ' 秒',
       '',
