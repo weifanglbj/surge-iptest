@@ -1,4 +1,15 @@
 /*
+ * IPTest 节点检测 · Surge 面板脚本 v8 — 在 v7 基础上加 IPPure 作第三个纯净度来源.
+ * 加法: 纯净度、属性、欺诈值三处都并排显示两家, 各带来源标注 (iptest)/(ippure),
+ *      如“5% 极度纯净 (iptest) 15% 很纯净 (ippure)”; 最后一行改叫“测试源”,
+ *      值为 iptest.us/ippure. IPPure 的等级沿用原来的分级 (15% = 很纯净).
+ * 注意: 标题栏放不下两家 (太长会被截掉, (ippure) 显示不出来), 所以标题只留
+ *      iptest 的分, 双来源的纯净度放在内容第一行“纯净度”里, 内容行会自动换行,
+ *      能完整显示. 属性、欺诈值两行同样是双来源并排.
+ * 接口: 4) https://my.ippure.com/v1/info — 免 Key、免注册 (Beta), 返回出口 IP 的
+ *      fraudScore 0-100、isResidential、isBroadcast. 只在 IPv4 出口上有欺诈分,
+ *      IPv6 出口不给分, 有关的 (ippure) 一段整个省略. 面板请求走当前节点,
+ *      所以拿到的是节点出口 IP 的分. 标题的综合风险不动, 仍是 iplogs + FFraud 的平均值.
  * IPTest 节点检测 · Surge 面板脚本 v7 草稿 — 只修 v6 被用户指出的两处错标, 纯净度打分逻辑与 v5/v6 完全一致, 未改动
  * 修 1) 位置: iptest.us 的 geo 库会把个别 IP 的城市标错 (如 187.54.52.230 标成 Tokyo, 实际是香港),
  *        改为优先用 iplogs 的 ip_info 国家/城市, iplogs 与 FFraud 在该 IP 上都认同香港, iptest 只作后备.
@@ -15,10 +26,12 @@
  *      is_tor/is_hosting、reputation、网络类型 residential/datacenter
  *   3) https://api.ffraud.com/public/ip/{ip} — fraud_score 0-100、risk、
  *      vpn/proxy/tor/residential_proxy、recent_abuse、connection_type
+ *   4) https://my.ippure.com/v1/info — fraudScore 0-100、isResidential、
+ *      isBroadcast (只查调用方 IP, 即节点出口 IP; IPv4 才有分, IPv6 无分)
  * 综合风险 = iplogs 分数与 FFraud 欺诈分的平均值, 越低越干净.
  * 分级: 0-14 极度纯净, 15-31 很纯净, 32-47 比较干净, 48-65 一般, 66-84 较脏, 85-100 很脏
- * 注意: 参考图里的“来源 广播 IP”那一项, 我们用的接口里没有这个字段,
- *       没法凭空编, 所以没放这一行, 用欺诈值/延迟代替.
+ * 注意: 参考图里的“来源 广播 IP”那一项, v8 起由 IPPure 的 isBroadcast 提供
+ *       (true = 广播 IP, false = 原生 IP), 不再是编不出来的字段.
  */
 
 const API_IP = 'https://iptest.us/api/ip'
@@ -100,13 +113,15 @@ function grade(risk) {
     const asnNum = net.asn ? 'AS' + net.asn : (d.asn_organization || '未知')
     const latency = typeof d.latencyMs === 'number' ? d.latencyMs + 'ms' : ''
 
-    // 纯净度: 两个免费接口并行查, 互相印证, 逻辑与 v5 完全一致, 只改排版
+    // 纯净度: 三个免费接口并行查, 互相印证, 逻辑与 v5 完全一致, 只改排版
     const purity = await Promise.all([
       getOptional('https://iplogs.com/v1/check/' + encodeURIComponent(ip)),
       getOptional('https://api.ffraud.com/public/ip/' + encodeURIComponent(ip)),
+      getOptional('https://my.ippure.com/v1/info'),
     ])
     const logs = purity[0]
     const fraud = purity[1]
+    const ippure = purity[2]
 
     const scores = []
     if (logs && typeof logs.score === 'number') scores.push(Math.round(logs.score * 100))
@@ -137,20 +152,31 @@ function grade(risk) {
     const fraudVal = fraud && typeof fraud.fraud_score === 'number' ? fraud.fraud_score + '%' : '—'
     const fraudWord = fraud ? ({ none: '低', low: '低', medium: '中', high: '高', critical: '极高' }[fraud.risk] || '') : ''
     const abuse = fraud ? (fraud.recent_abuse ? '有滥用' : '无滥用') : ''
+    // v8 IPPure: 纯净度、属性、欺诈值三处都并排显示两家, 各带来源标注 (iptest)/(ippure);
+    // IPv6 出口 IPPure 无分, 有关的 (ippure) 一段整个省略
+    const ippureRisk = ippure && typeof ippure.fraudScore === 'number' ? ippure.fraudScore : null
+    const ippureScore = ippureRisk === null ? '' : ippureRisk + '% ' + grade(ippureRisk).label + ' (ippure)'
+    const ippureCast = ippure && typeof ippure.isBroadcast === 'boolean' ? (ippure.isBroadcast ? '广播 IP' : '原生 IP') : ''
+    const ippureAttrParts = []
+    if (ippure && ippure.isResidential) ippureAttrParts.push('住宅')
+    if (ippureCast) ippureAttrParts.push(ippureCast)
+    const ippureAttr = ippureAttrParts.length ? ippureAttrParts.join(' · ') + ' (ippure)' : ''
 
     panel.title = risk === null ? 'IP 纯净度 · 未查到' : 'IP 纯净度 · ' + risk + '% ' + g.label
     panel['icon-color'] = g.color
+    const purityLine = risk === null ? '未查到' : risk + '% ' + g.label
     const lines = [
       row(version === 'IPv6' ? 'IPv6' : 'IPv4', ip),
-      row('属性', tags.length ? tags.join(' · ') : '未知'),
+      row('纯净度', purityLine + ' (iptest)' + (ippureScore ? ' ' + ippureScore : '')),
+      row('属性', (tags.length ? tags.join(' · ') : '未知') + ' (iptest)' + (ippureAttr ? ' ' + ippureAttr : '')),
       row('ASN', asnNum),
       row('位置', (flag ? flag + ' ' : '') + logsPlace),
       row('运营商', isp),
-      row('欺诈值', fraudVal + (fraudWord ? ' ' + fraudWord : '') + (abuse ? ' · ' + abuse : '')),
+      row('欺诈值', fraudVal + (fraudWord ? ' ' + fraudWord : '') + (abuse ? ' · ' + abuse : '') + ' (iptest)' + (ippureScore ? ' ' + ippureScore : '')),
     ]
     if (latency) lines.push(row('延迟', latency))
-    // 最后加测试来源并附上网站
-    lines.push(row('测试来源', 'https://iptest.us'))
+    // 最后加测试源, 两家都写上
+    lines.push(row('测试源', 'iptest.us/ippure'))
     panel.content = lines.join('\n')
   } catch (e) {
     panel.title = 'IP 纯净度 · 检测失败'
