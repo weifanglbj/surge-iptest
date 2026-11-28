@@ -1,0 +1,10 @@
+#!name=节点网速测试 V3
+#!desc=并行测试 1 MB、5 MB、10 MB，显示 Mbps 与 KB/s
+#!author=yoki
+#!category=Network Test
+
+[Panel]
+speedtest-v3 = script-name=speedtest-v3, title="节点网速测试 V3", content="点击刷新开始测速", update-interval=0
+
+[Script]
+speedtest-v3 = type=generic, timeout=150, script-path=https://raw.githubusercontent.com/weifanglbj/surge-iptest/main/speedtest-panel-v3.js
