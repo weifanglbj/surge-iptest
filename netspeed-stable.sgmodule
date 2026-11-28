@@ -1,0 +1,10 @@
+#!name=节点网速测试 稳定版
+#!desc=使用 3 MB 单次完整响应测速，显示 Mbps、MB/s、KB/s、延迟和耗时
+#!author=yoki
+#!category=Network Test
+
+[Panel]
+netspeed-stable = script-name=netspeed-stable, title="节点网速测试", content="点击刷新开始测速", update-interval=0
+
+[Script]
+netspeed-stable = type=generic, timeout=75, script-path=https://raw.githubusercontent.com/weifanglbj/surge-iptest/main/netspeed-stable.js?v=20261128-1, script-update-interval=86400
