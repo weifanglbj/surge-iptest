@@ -58,6 +58,15 @@ function formatMbps(bytes, milliseconds) {
   return (bytes * 8 / milliseconds / 1000).toFixed(2) + ' Mbps'
 }
 
+function formatKBps(bytes, milliseconds) {
+  if (!milliseconds) return '—'
+  return (bytes / milliseconds).toFixed(0) + ' KB/s'
+}
+
+function formatSpeed(bytes, milliseconds) {
+  return formatMbps(bytes, milliseconds) + '（' + formatKBps(bytes, milliseconds) + '）'
+}
+
 function formatSize(bytes) {
   return (bytes / 1000000).toFixed(0) + ' MB'
 }
@@ -102,7 +111,7 @@ function speedColor(mbps) {
       ''
     ]
     results.forEach(function (item) {
-      lines.push(formatSize(item.bytes) + '   ' + formatMbps(item.bytes, item.elapsed))
+      lines.push('下载 ' + formatSize(item.bytes) + '  ' + formatSpeed(item.bytes, item.elapsed))
     })
     if (results.length < SAMPLES.length) lines.push('部分测速失败，可再次刷新')
     const sourceNames = Object.keys(sources)
